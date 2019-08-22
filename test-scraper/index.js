@@ -1,5 +1,6 @@
 const cheerio = require("cheerio")
 const request = require("request-promise")
+const Airtable = require("airtable")
 
 module.exports = async function (context, req) {
     context.log('JavaScript HTTP trigger function processed a request.');
@@ -29,6 +30,9 @@ module.exports = async function (context, req) {
                 }
             )
         })
+
+        let lastId = LastId(url)
+
         context.res = {
             //This is where the successful response goes
             body: JSON.stringify(newAds)
@@ -38,6 +42,37 @@ module.exports = async function (context, req) {
         context.res = {
             status: 400,
             body: "Please pass in a URL you would like to scrape"
-        };
+        }
     }
-};
+}
+
+const LastId = async(url) => {
+    const apiKey = 'api' 
+    let base = new Airtable({ apiKey }).base("{base-id}")
+
+    const select = 'AND(url = "' + url + '")'
+
+    let row = await base("{table-name}")
+        .select({
+            view: "Grid view",
+            filteredByFormula: select
+        }).firstPage()
+
+    if (row.length) {
+        return row[0].fields.lastId
+    }
+
+    createNewRow(url)
+    return
+}
+
+const createNewRow = (url) => {
+    const apiKey = 'api'
+    let base = new Airtable({ apikey }).base("{base-id}")
+
+    base("{table-name}").create(
+        {
+            url: url
+        }
+    )
+}

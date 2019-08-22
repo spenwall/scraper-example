@@ -1,5 +1,5 @@
-const cheerio = require("cheerio")
-const request = require("request-promise")
+const Cheerio = require("cheerio")
+const Request = require("request-promise")
 const Airtable = require("airtable")
 
 module.exports = async function (context, req) {
@@ -11,14 +11,14 @@ module.exports = async function (context, req) {
             uri: req.query.url,
             transform: body => {
                 //After the request comes back we pass it through cheerio
-                return cheerio.load(body)
+                return Cheerio.load(body)
             }
         }
 
         // This is where we make the request to fetch the page
         // The $ is a cheerio object that we will use to search for 
         // elements
-        const $ = await request(options)
+        const $ = await Request(options)
         const ads = $('.regular-ad')
         let newAds = [];
         ads.each((i, ad) => {

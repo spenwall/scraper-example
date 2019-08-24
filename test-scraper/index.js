@@ -4,11 +4,12 @@ const Airtable = require("airtable")
 
 module.exports = async function (context, req) {
     context.log('JavaScript HTTP trigger function processed a request.');
+    const url = req.query.url
 
-    if (req.query.url) {
+    if (url) {
         //These are the options for the request
         let options = {
-            uri: req.query.url,
+            uri: url,
             transform: body => {
                 //After the request comes back we pass it through cheerio
                 return Cheerio.load(body)
@@ -20,23 +21,36 @@ module.exports = async function (context, req) {
         // elements
         const $ = await Request(options)
         const ads = $('.regular-ad')
-        let newAds = [];
-        ads.each((i, ad) => {
-            newAds.push(
-                {
+        let allAds = ads.map((i, ad) => {
+            return  {
                     title: $(ad).find("a.title").text(),
                     id: $(ad).attr("data-listing-id"),
                     price: $(ad).find(".price").text()
-                }
-            )
+                    }
+                })
+        
+
+        let lastId = await LastId(url)
+    
+        let newAds = []
+        // The each function is from the cheerio object
+        // return false breaks the loop
+        allAds.each((i, ad) => {
+            if (ad.id === lastId) {
+                return false
+            }
+            newAds.push(ad)
         })
 
-        let lastId = LastId(url)
+        if (newAds.length) {
+            let newestAdId = newAds[0].id
+            saveNewestAdId(url, newestAdId)
+        }
 
         context.res = {
             //This is where the successful response goes
             body: JSON.stringify(newAds)
-        };
+        }
     }
     else {
         context.res = {
@@ -46,17 +60,18 @@ module.exports = async function (context, req) {
     }
 }
 
-const LastId = async(url) => {
-    const apiKey = 'api' 
-    let base = new Airtable({ apiKey }).base("{base-id}")
+const LastId = async (url) => {
+    const apiKey = 'key4VeTEjoa318V75'
+    const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
-    const select = 'AND(url = "' + url + '")'
+    const select = `({url} = "${url}")`;
 
-    let row = await base("{table-name}")
+    let row = await base("test-scraper")
         .select({
             view: "Grid view",
-            filteredByFormula: select
-        }).firstPage()
+            filterByFormula: select,
+        })
+        .firstPage()
 
     if (row.length) {
         return row[0].fields.lastId
@@ -67,12 +82,43 @@ const LastId = async(url) => {
 }
 
 const createNewRow = (url) => {
-    const apiKey = 'api'
-    let base = new Airtable({ apikey }).base("{base-id}")
+    const apiKey = 'key4VeTEjoa318V75'
+    const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
-    base("{table-name}").create(
+    base("test-scraper").create(
         {
-            url: url
+            "url": url
         }
     )
+}
+
+const saveNewestAdId = (url, id) => {
+    const apiKey = 'key4VeTEjoa318V75'
+    const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
+
+    const select = `({url} = "${url}")`;
+
+    base("test-scraper")
+        .select({
+            view: "Grid view",
+            filterByFormula: select,
+        })
+        .firstPage((err, records) => {
+            if (err) {
+                console.error(err)
+                return
+            }
+            if (records.length === 1) {
+                base("test-scraper").update(records[0].id,
+                    {
+                        lastId: id
+                    }, (err, record) => {
+                        if (err) {
+                            console.error(err)
+                            return
+                        }
+                    })
+            }
+        })
+    
 }

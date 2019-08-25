@@ -1,12 +1,14 @@
 const Cheerio = require("cheerio")
 const Request = require("request-promise")
 const Airtable = require("airtable")
+const Mailgun = require("mailgun-js")
 
 module.exports = async function (context, req) {
     context.log('JavaScript HTTP trigger function processed a request.');
     const url = req.query.url
+    const email = req.query.email
 
-    if (url) {
+    if (url && email) {
         //These are the options for the request
         let options = {
             uri: url,
@@ -24,8 +26,12 @@ module.exports = async function (context, req) {
         let allAds = ads.map((i, ad) => {
             return  {
                     title: $(ad).find("a.title").text(),
+                    link: "https://kijiji.ca" + $(ad)
+                    .find("a.title")
+                    .attr("href"),
                     id: $(ad).attr("data-listing-id"),
-                    price: $(ad).find(".price").text()
+                    price: $(ad).find(".price").text(),
+                    image: $(ad).find("img").attr("src"),
                     }
                 })
         
@@ -45,6 +51,9 @@ module.exports = async function (context, req) {
         if (newAds.length) {
             let newestAdId = newAds[0].id
             saveNewestAdId(url, newestAdId)
+            newAds.forEach((ad) => {
+                sendNotifications(ad, email)
+            })
         }
 
         context.res = {
@@ -61,7 +70,7 @@ module.exports = async function (context, req) {
 }
 
 const LastId = async (url) => {
-    const apiKey = 'key4VeTEjoa318V75'
+    const apiKey = process.evn["AIRTABLE_API_KEY"]
     const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
     const select = `({url} = "${url}")`;
@@ -82,7 +91,7 @@ const LastId = async (url) => {
 }
 
 const createNewRow = (url) => {
-    const apiKey = 'key4VeTEjoa318V75'
+    const apiKey = process.evn["AIRTABLE_API_KEY"] 
     const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
     base("test-scraper").create(
@@ -121,4 +130,26 @@ const saveNewestAdId = (url, id) => {
             }
         })
     
+}
+
+const sendNotifications = (ad, email) => {
+    const apiKey = process.env['MAILGUN_API_KEY'];
+    const domain = process.env['MAILGUN_DOMAIN'];
+
+    const mail = Mailgun({apiKey, domain})
+    const data = {
+        from: 'Kijiji Alerts <alert@rfd.spencerwallace.ca>',
+        to: email,
+        subject: 'New Kijiji ad',
+        template: 'kijiji-ad',
+        "v:title": ad.title,
+        "v:link": ad.link,
+        "v:price": ad.price,
+        "v:image": ad.image
+    };
+
+    mail.messages().send(data, function(err, body) {
+        console.log(body)
+    })
+
 }

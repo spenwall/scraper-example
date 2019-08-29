@@ -70,7 +70,7 @@ module.exports = async function (context, req) {
 }
 
 const LastId = async (url) => {
-    const apiKey = process.evn["AIRTABLE_API_KEY"]
+    const apiKey = process.env["AIRTABLE_API_KEY"]
     const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
     const select = `({url} = "${url}")`;
@@ -91,7 +91,7 @@ const LastId = async (url) => {
 }
 
 const createNewRow = (url) => {
-    const apiKey = process.evn["AIRTABLE_API_KEY"] 
+    const apiKey = process.env["AIRTABLE_API_KEY"] 
     const base = new Airtable({ apiKey }).base("app6oORsYg8BZk2GE")
 
     base("test-scraper").create(

@@ -6,7 +6,7 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "airtable": "^0.7.1",
+    "airtable": "^0.7.2",
     "cheerio": "^1.0.0-rc.3",
     "mailgun-js": "^0.22.0",
     "request": "^2.88.0",
